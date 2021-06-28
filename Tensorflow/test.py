@@ -1,48 +1,113 @@
-import argparse
+import tensorflow as tf
+from tensorflow import keras
+from tensorflow.keras import layers
+import numpy as np
 
-# globel param
-# dataset setting
-img_width = 256
-img_height = 128
-img_channel = 3
-label_width = 256
-label_height = 128
-label_channel = 1
-data_loader_numworkers = 8
-class_num = 2
+import torch
+import torch.nn as nn
+import torch.nn.functional as F 
+import math
+from torch.autograd import Variable
 
-# path
-train_path = "./data/train_index.txt"
-val_path = "./data/val_index.txt"
-test_path = "./data/test_index_demo.txt"
-save_path = "./save/result/"
-pretrained_path='./pretrained/unetlstm.pth'
 
-# weight
-class_weight = [0.02, 1.02]
+class ConvLSTMCell(tf.Module):
 
-def args_setting():
-    # Training settings
-    parser = argparse.ArgumentParser(description='PyTorch UNet-ConvLSTM')
-    parser.add_argument('--model',type=str, default='UNet-ConvLSTM',help='( UNet-ConvLSTM | SegNet-ConvLSTM | UNet | SegNet | ')
-    parser.add_argument('--batch-size', type=int, default=15, metavar='N',
-                        help='input batch size for training (default: 10)')
-    parser.add_argument('--test-batch-size', type=int, default=1, metavar='N',
-                        help='input batch size for testing (default: 100)')
-    parser.add_argument('--epochs', type=int, default=30, metavar='N',
-                        help='number of epochs to train (default: 30)')
-    parser.add_argument('--lr', type=float, default=0.01, metavar='LR',
-                        help='learning rate (default: 0.01)')
-    parser.add_argument('--momentum', type=float, default=0.5, metavar='M',
-                        help='SGD momentum (default: 0.5)')
-    parser.add_argument('--cuda', action='store_true', default=True,
-                        help='use CUDA training')
-    parser.add_argument('--seed', type=int, default=1, metavar='S',
-                        help='random seed (default: 1)')
-    parser.add_argument('--log-interval', type=int, default=10, metavar='N',
-                        help='how many batches to wait before logging training status')
-    args = parser.parse_args()
-    print(args.model)
-    return args
+    def __init__(self, input_size, input_dim, hidden_dim, kernel_size, bias):
+        """
+        Initialize ConvLSTM cell.
 
-args = args_setting()
+        Parameters
+        ----------
+        input_size: (int, int)
+            Height and width of input tensor as (height, width).
+        input_dim: int
+            Number of channels of input tensor.
+        hidden_dim: int
+            Number of channels of hidden state.
+        kernel_size: (int, int)
+            Size of the convolutional kernel.
+        bias: bool
+            Whether or not to add the bias.
+        """
+
+        super(ConvLSTMCell, self).__init__()
+
+        self.height, self.width = input_size
+        self.input_dim = input_dim
+        self.hidden_dim = hidden_dim
+
+        self.kernel_size = kernel_size
+        self.padding = kernel_size[0] // 2, kernel_size[1] // 2
+        self.bias = bias
+
+
+        self.conv = keras.Sequential([
+            layers.ZeroPadding2D(padding=self.padding),
+            layers.Conv2D( #in_channels=self.input_dim + self.hidden_dim,
+                              filters=4 * self.hidden_dim,
+                              kernel_size=self.kernel_size,
+                              padding='valid',
+                              use_bias=self.bias)
+        ])
+
+    def __call__(self, input_tensor, cur_state):
+        h_cur, c_cur = cur_state
+
+        combined = layers.concatenate([input_tensor, h_cur], axis=3)  # concatenate along channel axis
+
+        combined_conv = self.conv(combined)
+        for_split_list = []
+        
+        for i in range(combined_conv.shape[3] // self.hidden_dim):
+            for_split_list.append(self.hidden_dim)
+        cc_i, cc_f, cc_o, cc_g = tf.split(combined_conv, for_split_list, axis=3) # split 확인할 것
+        i = tf.sigmoid(cc_i)
+        f = tf.sigmoid(cc_f)
+        o = tf.sigmoid(cc_o)
+        g = tf.tanh(cc_g)
+
+        c_next = f * c_cur + i * g
+        h_next = o * tf.tanh(c_next)
+
+        return h_next, c_next
+
+    def init_hidden(self, batch_size):
+        return (tf.zeros(batch_size, self.hidden_dim, self.height, self.width),
+                tf.zeros(batch_size, self.hidden_dim, self.height, self.width))
+
+def _extend_for_multilayer(param, num_layers):
+        if not isinstance(param, list):
+            param = [param] * num_layers
+        return param
+
+num_layers = 10
+input_dim = 5
+# hidden_dim
+hidden_dim = 5
+height, width = 2, 5
+kernel_size = (3, 3)
+bias = True
+kernel_size = _extend_for_multilayer(kernel_size, num_layers)
+hidden_dim = _extend_for_multilayer(hidden_dim, num_layers)
+
+cell_list = []
+
+for i in range(0, num_layers):
+    # cur_input_dim = input_dim if i == 0 else hidden_dim[i - 1]
+
+    cell_list.append(ConvLSTMCell(input_size=(height, width),
+                                    input_dim=input_dim,
+                                    hidden_dim=hidden_dim[i],
+                                    kernel_size=kernel_size[i],
+                                    bias=bias))
+x = np.arange(1,501,dtype=np.float32).reshape(1,10,2,5,5)
+x1 = np.arange(1,51,dtype=np.float32).reshape(1,2,5,5)
+x2 = np.arange(1,51,dtype=np.float32).reshape(1,2,5,5)
+x = tf.convert_to_tensor(x)
+x1 = tf.convert_to_tensor(x1)
+x2 = tf.convert_to_tensor(x2)
+# print(x1)
+for i in range(0, num_layers):
+    # # print(x[:, i, :, :, :])
+    print(cell_list[i](input_tensor=x[:,i,:,:,:], cur_state = (x1, x2)))
+
