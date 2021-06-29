@@ -3,14 +3,14 @@ from tensorflow import keras
 from tensorflow.keras import layers
 import numpy as np
 
-class double_conv(tf.Module):
+class double_conv(tf.Module): 
     def __init__(self, in_ch, out_ch):
         super(double_conv, self).__init__()
         self.conv = keras.Sequential([
-            layers.Conv2D(out_ch, (3, 3), padding = "SAME", activation=None, input_shape = [28,28, in_ch]), # keras에서 input_channel의 수가 중요한가?
+            layers.Conv2D(out_ch, (3, 3), padding = "SAME", activation=None, input_shape = [128, 256, in_ch]), 
             layers.BatchNormalization(),
             layers.Activation('relu'),
-            layers.Conv2D(out_ch, (3, 3), padding = "SAME", activation=None), # keras에서 input_channel의 수가 중요한가?
+            layers.Conv2D(out_ch, (3, 3), padding = "SAME", activation=None), 
             layers.BatchNormalization(),
             layers.Activation('relu')            
         ])
@@ -54,8 +54,8 @@ class up(tf.Module):
 
     def __call__(self, x1, x2):
         x1 = self.up(x1) 
-        diffX = x1.shape()[2] - x2.shape()[2] # width 라고 예상 (확인 할 것)
-        diffY = x1.shape()[1] - x2.shape()[1] # height 라고 예상 (확인 할 것)
+        diffX = x1.shape()[1] - x2.shape()[1] # height ?
+        diffY = x1.shape()[2] - x2.shape()[2] # width ?
         x2 = tf.pad(x2, (diffX // 2, int(diffX / 2),
                         diffY // 2, int(diffY / 2)))
         x = layers.concatenate([x2, x1], dim=1)
@@ -65,7 +65,7 @@ class up(tf.Module):
 class outconv(tf.Module):
     def __init__(self, in_ch, out_ch):
         super(outconv, self).__init__()
-        self.conv = layers.Conv2D(out_ch, (1, 1), padding = "SAME", activation=None, input_shape = [28,28, in_ch])
+        self.conv = layers.Conv2D(out_ch, (1, 1), padding = "SAME", activation=None, input_shape = [128, 256, in_ch])
     def __call__(self, x):
         x = self.conv(x)
         return x
@@ -121,7 +121,7 @@ class ConvLSTMCell(tf.Module):
         
         for i in range(combined_conv.shape[3] // self.hidden_dim):
             for_split_list.append(self.hidden_dim)
-        cc_i, cc_f, cc_o, cc_g = tf.split(combined_conv, for_split_list, axis=3) # split 확인할 것
+        cc_i, cc_f, cc_o, cc_g = tf.split(combined_conv, for_split_list, axis=3) # split 
         i = tf.sigmoid(cc_i)
         f = tf.sigmoid(cc_f)
         o = tf.sigmoid(cc_o)
@@ -133,8 +133,8 @@ class ConvLSTMCell(tf.Module):
         return h_next, c_next
 
     def init_hidden(self, batch_size):
-        return (tf.zeros(batch_size, self.width, self.height, self.hidden_dim),
-                tf.zeros(batch_size, self.width, self.height, self.hidden_dim))
+        return (tf.zeros(batch_size, self.height, self.width, self.hidden_dim),
+                tf.zeros(batch_size, self.height, self.width, self.hidden_dim))
 
 
 class ConvLSTM(tf.Module):
@@ -189,8 +189,8 @@ class ConvLSTM(tf.Module):
         last_state_list, layer_output
         """
         if not self.batch_first:
-            # (t, b, c, h, w) -> (b, t, c, h, w) -> t가 무엇인가 t는 seq num
-            # (t, b, w, h, c) -> (b, t, w, h, c)
+            # (t, b, c, h, w) -> (b, t, c, h, w) -> t = seq num
+            # (t, b, h, w, c) -> (b, t, h, w, c)
             input_tensor = tf.transpose(input_tensor, [1, 0, 2, 3, 4])
 
         # Implement stateful ConvLSTM
@@ -220,7 +220,6 @@ class ConvLSTM(tf.Module):
             cur_layer_input = layer_output
             
             layer_output = tf.transpose(layer_output, [1, 0, 2, 3, 4])
-            # transpose로 바꾸자ㅏ.
             layer_output_list.append(layer_output)
             last_state_list.append([h, c])
 
