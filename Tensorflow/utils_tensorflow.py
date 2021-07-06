@@ -7,11 +7,11 @@ class double_conv(tf.Module):
     def __init__(self, in_ch, out_ch):
         super(double_conv, self).__init__()
         self.conv = keras.Sequential([
-            layers.Conv2D(out_ch, (3, 3), padding = "SAME", activation=None, input_shape = [128, 256, in_ch]), 
-            layers.BatchNormalization(),
+            layers.Conv2D(out_ch, (3, 3), padding = "SAME", activation=None), 
+            layers.BatchNormalization(momentum=0.9),
             layers.Activation('relu'),
             layers.Conv2D(out_ch, (3, 3), padding = "SAME", activation=None), 
-            layers.BatchNormalization(),
+            layers.BatchNormalization(momentum=0.9),
             layers.Activation('relu')            
         ])
     def __call__(self, x):
@@ -29,10 +29,15 @@ class inconv(tf.Module):
 class down(tf.Module):
     def __init__(self, in_ch, out_ch):
         super(down, self).__init__()
-        self.mpconv = keras.Sequential(
+        self.mpconv = keras.Sequential([
             layers.MaxPooling2D(2),
-            double_conv(in_ch, out_ch)
-        )
+            layers.Conv2D(out_ch, (3, 3), padding = "SAME", activation=None), 
+            layers.BatchNormalization(momentum=0.9),
+            layers.Activation('relu'),
+            layers.Conv2D(out_ch, (3, 3), padding = "SAME", activation=None), 
+            layers.BatchNormalization(momentum=0.9),
+            layers.Activation('relu') 
+        ])
 
     def __call__(self, x):
         x = self.mpconv(x)
@@ -54,18 +59,18 @@ class up(tf.Module):
 
     def __call__(self, x1, x2):
         x1 = self.up(x1) 
-        diffX = x1.shape()[1] - x2.shape()[1] # height ?
-        diffY = x1.shape()[2] - x2.shape()[2] # width ?
-        x2 = tf.pad(x2, (diffX // 2, int(diffX / 2),
-                        diffY // 2, int(diffY / 2)))
-        x = layers.concatenate([x2, x1], dim=1)
+        diffX = x1.shape[1] - x2.shape[1] # height ?
+        diffY = x1.shape[2] - x2.shape[2] # width ?
+        padding = [[0,0], [(diffX)// 2, int((diffX + 1)/ 2)], [diffY // 2, int((diffY+1) / 2)], [0,0]]
+        x2 = tf.pad(x2, padding)
+        x = layers.concatenate([x2, x1], axis=3)
         x = self.conv(x)
         return x
 
 class outconv(tf.Module):
     def __init__(self, in_ch, out_ch):
         super(outconv, self).__init__()
-        self.conv = layers.Conv2D(out_ch, (1, 1), padding = "SAME", activation=None, input_shape = [128, 256, in_ch])
+        self.conv = layers.Conv2D(out_ch, (1, 1), padding = "SAME", activation=None)
     def __call__(self, x):
         x = self.conv(x)
         return x
@@ -107,7 +112,7 @@ class ConvLSTMCell(tf.Module):
             layers.Conv2D( #in_channels=self.input_dim + self.hidden_dim,
                               filters=4 * self.hidden_dim,
                               kernel_size=self.kernel_size,
-                              padding='valid',
+                              padding="valid",
                               use_bias=self.bias)
         ])
 
@@ -121,6 +126,7 @@ class ConvLSTMCell(tf.Module):
         
         for i in range(combined_conv.shape[3] // self.hidden_dim):
             for_split_list.append(self.hidden_dim)
+
         cc_i, cc_f, cc_o, cc_g = tf.split(combined_conv, for_split_list, axis=3) # split 
         i = tf.sigmoid(cc_i)
         f = tf.sigmoid(cc_f)
@@ -133,8 +139,8 @@ class ConvLSTMCell(tf.Module):
         return h_next, c_next
 
     def init_hidden(self, batch_size):
-        return (tf.zeros(batch_size, self.height, self.width, self.hidden_dim),
-                tf.zeros(batch_size, self.height, self.width, self.hidden_dim))
+        return (tf.zeros([batch_size, self.height, self.width, self.hidden_dim]),
+                tf.zeros([batch_size, self.height, self.width, self.hidden_dim]))
 
 
 class ConvLSTM(tf.Module):
