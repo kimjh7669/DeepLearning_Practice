@@ -26,26 +26,26 @@ from torch.autograd import Variable
 
 
 
-onehot_labels = [[0,0,1,0,0],
-                  [0,0,0,1,0],
-                  [0,1,0,0,0],
-                  [1,0,0,0,0]]
-labels = np.argmax(onehot_labels, axis=1)
+# onehot_labels = [[0,0,1,0,0],
+#                   [0,0,0,1,0],
+#                   [0,1,0,0,0],
+#                   [1,0,0,0,0]]
+# labels = np.argmax(onehot_labels, axis=1)
 # [2 3 1 0]
-logits = [[-1.1258, -1.1524, -0.2506, -0.4339,  0.5988],
-          [-1.5551, -0.3414,  1.8530,  0.4681, -0.1577],
-          [ 1.4437,  0.2660,  1.3894,  1.5863,  0.9463],
-          [-0.8437,  0.9318,  1.2590,  2.0050,  0.0537]]
-class_weight = [0.02, 1.02]
+# logits = [[-1.1258, -1.1524, -0.2506, -0.4339,  0.5988],
+#           [-1.5551, -0.3414,  1.8530,  0.4681, -0.1577],
+#           [ 1.4437,  0.2660,  1.3894,  1.5863,  0.9463],
+#           [-0.8437,  0.9318,  1.2590,  2.0050,  0.0537]]
+# class_weight = [0.02, 1.02]
 
 # Convert to a tensor that tf can handle
-tflabels = tf.constant(labels)
-tflabels_oh = tf.constant(onehot_labels)
-tflogits = tf.constant(logits)
+# tflabels = tf.constant(labels)
+# tflabels_oh = tf.constant(onehot_labels)
+# tflogits = tf.constant(logits)
 
 # tfloss = tf.nn.sparse_softmax_cross_entropy_with_logits(labels=tflabels, logits=tflogits)
 # tfloss_oh = tf.nn.softmax_cross_entropy_with_logits(labels=tflabels_oh, logits=tflogits)
-tfloss = tf.nn.weighted_cross_entropy_with_logits(pos_weight=class_weight, name=None)
+# tfloss = tf.nn.weighted_cross_entropy_with_logits(pos_weight=class_weight, name=None)
 # lossvalue = tfloss.numpy()
 # loss_oh_value = tfloss_oh.numpy()
 
@@ -75,3 +75,4 @@ tfloss = tf.nn.weighted_cross_entropy_with_logits(pos_weight=class_weight, name=
 # print(labels)
 
 
+a = np.array([3,3,3])

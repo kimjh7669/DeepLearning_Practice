@@ -8,6 +8,7 @@ __pycache__/
 
 # Distribution / packaging
 .Python
+Tensorflow/LaneDetectionCode/data/
 build/
 develop-eggs/
 dist/

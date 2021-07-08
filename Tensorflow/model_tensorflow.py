@@ -67,7 +67,7 @@ class UNet_ConvLSTM(tf.Module):
             data.append(tf.expand_dims(x5, axis = 0))
         data = layers.concatenate(data, axis=0)
         lstm, _ = self.convlstm(data)
-        test = lstm[0][ -1,:, :, :, :]
+        test = lstm[-1][ -1,:, :, :, :]
         x = self.up1(test, x4)
         x = self.up2(x, x3)
         x = self.up3(x, x2)
@@ -320,4 +320,3 @@ def generate_model(args):
     return model
 args = args_setting()
 model = generate_model(args)
-print(model.parameters())
