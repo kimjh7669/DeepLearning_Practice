@@ -13,7 +13,8 @@ def train(args, epoch, model, train_loader, device, optimizer, criterion):
     for batch_idx,  sample_batched in enumerate(train_loader):
         data, target = sample_batched['data'].to(device), sample_batched['label'].type(torch.LongTensor).to(device) # LongTensor
         optimizer.zero_grad()
-        output = model(data)
+        print(data.shape)
+        output, _ = model(data)
         loss = criterion(output, target)
         loss.backward()
         optimizer.step()
@@ -67,6 +68,7 @@ if __name__ == '__main__':
     torch.manual_seed(args.seed)
     use_cuda = args.cuda and torch.cuda.is_available()
     device = torch.device("cuda" if use_cuda else "cpu")
+    # device = torch.device("cpu")
 
     # turn image into floatTensor
     op_tranforms = transforms.Compose([transforms.ToTensor()])
@@ -75,10 +77,10 @@ if __name__ == '__main__':
     if args.model == 'SegNet-ConvLSTM' or 'UNet-ConvLSTM':
         train_loader = torch.utils.data.DataLoader(
             RoadSequenceDatasetList(file_path=config.train_path, transforms=op_tranforms),
-            batch_size=args.batch_size,shuffle=True,num_workers=config.data_loader_numworkers)
-        val_loader = torch.utils.data.DataLoader(
-            RoadSequenceDatasetList(file_path=config.val_path, transforms=op_tranforms),
-            batch_size=args.test_batch_size,shuffle=True,num_workers=config.data_loader_numworkers)
+            batch_size=args.batch_size,shuffle=True)# ,num_workers=config.data_loader_numworkers)
+        # val_loader = torch.utils.data.DataLoader(
+        #     RoadSequenceDatasetList(file_path=config.val_path, transforms=op_tranforms),
+            # batch_size=args.test_batch_size,shuffle=True,num_workers=config.data_loader_numworkers)
     else:
         train_loader = torch.utils.data.DataLoader(
             RoadSequenceDataset(file_path=config.train_path, transforms=op_tranforms),
@@ -120,5 +122,5 @@ if __name__ == '__main__':
     for epoch in range(1, args.epochs+1):
         scheduler.step()
         train(args, epoch, model, train_loader, device, optimizer, criterion)
-        val(args, model, val_loader, device, criterion, best_acc)
+        # val(args, model, val_loader, device, criterion, best_acc)
 
