@@ -2,10 +2,9 @@ import tensorflow as tf
 import config
 from tensorflow import keras
 from tensorflow.keras import layers
-from tensorflow.keras import Model
 from utils_tensorflow import *
 import operator
-# from config import args_setting
+from config import args_setting
 import numpy as np
 
 def unpool(value, name='unpool'):
@@ -34,7 +33,7 @@ def unpool(value, name='unpool'):
 
 
 
-class UNet_ConvLSTM(Model):
+class UNet_ConvLSTM(tf.Module):
     def __init__(self, n_channels, n_classes):
         super(UNet_ConvLSTM, self).__init__()
         self.inc = inconv(n_channels, 64)
@@ -56,7 +55,7 @@ class UNet_ConvLSTM(Model):
                                  bias=True,
                                  return_all_layers=False)
 
-    def call(self, x):
+    def __call__(self, x):
         x = tf.unstack(x, axis=1)
         data = []
         for item in x:
@@ -78,7 +77,7 @@ class UNet_ConvLSTM(Model):
 
 
 
-class UNet(Model):
+class UNet(tf.Module):
     def __init__(self, n_channels, n_classes):
         super(UNet, self).__init__()
         self.inc = inconv(n_channels, 64)
@@ -92,7 +91,7 @@ class UNet(Model):
         self.up4 = up(128, 64)
         self.outc = outconv(64, n_classes)
 
-    def call(self, x):
+    def __call__(self, x):
         x1 = self.inc(x)
         x2 = self.down1(x1)
         x3 = self.down2(x2)
@@ -106,7 +105,7 @@ class UNet(Model):
         return x
 
 
-class SegNet_ConvLSTM(Model):
+class SegNet_ConvLSTM(tf.Module):
     def __init__(self):
         super(SegNet_ConvLSTM,self).__init__()
         self.vgg16_bn = tf.keras.applications.VGG16(include_top=False)
@@ -189,7 +188,7 @@ class SegNet_ConvLSTM(Model):
                                  batch_first=False,
                                  bias=True,
                                  return_all_layers=False)
-    def call(self, x):
+    def __call__(self, x):
         x = tf.unstack(x, axis=1)
         data = []
         for item in x:
@@ -211,7 +210,7 @@ class SegNet_ConvLSTM(Model):
         return tf.nn.log_softmax(up1, axis=1)
 
 
-class SegNet(Model):
+class SegNet(tf.Module):
     def __init__(self):
         super(SegNet,self).__init__()
         self.vgg16_bn = tf.keras.applications.VGG16(include_top=False)
@@ -287,7 +286,7 @@ class SegNet(Model):
                                         self.relu,
                                         layers.Conv2D(config.class_num, (3, 3), padding='same'),
                                         )
-    def call(self, x):
+    def __call__(self, x):
         f1, idx1 = self.index_MaxPool(self.conv1_block(x))
         f2, idx2 = self.index_MaxPool(self.conv2_block(f1))
         f3, idx3 = self.index_MaxPool(self.conv3_block(f2))
@@ -315,7 +314,9 @@ def generate_model(args):
     elif args.model == 'SegNet':
         model = SegNet()
     elif args.model == 'UNet-ConvLSTM':
-        model = UNet_ConvLSTM(config.img_channel, config.class_num)
+        model =UNet_ConvLSTM(config.img_channel, config.class_num)
     elif args.model == 'UNet':
         model = UNet(config.img_channel, config.class_num)
     return model
+args = args_setting()
+model = generate_model(args)

@@ -25,11 +25,11 @@ def args_setting():
     # Training settings
     parser = argparse.ArgumentParser(description='PyTorch UNet-ConvLSTM')
     parser.add_argument('--model',type=str, default='UNet-ConvLSTM',help='( UNet-ConvLSTM | SegNet-ConvLSTM | UNet | SegNet | ')
-    parser.add_argument('--batch-size', type=int, default=5, metavar='N',
+    parser.add_argument('--batch-size', type=int, default=15, metavar='N',
                         help='input batch size for training (default: 10)')
-    parser.add_argument('--test-batch-size', type=int, default=1, metavar='N',
+    parser.add_argument('--test-batch-size', type=int, default=100, metavar='N',
                         help='input batch size for testing (default: 100)')
-    parser.add_argument('--epochs', type=int, default=5, metavar='N',
+    parser.add_argument('--epochs', type=int, default=30, metavar='N',
                         help='number of epochs to train (default: 30)')
     parser.add_argument('--lr', type=float, default=0.01, metavar='LR',
                         help='learning rate (default: 0.01)')
@@ -41,6 +41,5 @@ def args_setting():
                         help='random seed (default: 1)')
     parser.add_argument('--log-interval', type=int, default=10, metavar='N',
                         help='how many batches to wait before logging training status')
-    args = parser.parse_args(args=[])
+    args = parser.parse_args()
     return args
-

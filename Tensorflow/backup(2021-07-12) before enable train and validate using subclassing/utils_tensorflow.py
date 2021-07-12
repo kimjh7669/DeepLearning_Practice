@@ -3,7 +3,7 @@ from tensorflow import keras
 from tensorflow.keras import layers
 import numpy as np
 
-class double_conv(layers.Layer): 
+class double_conv(tf.Module): 
     def __init__(self, in_ch, out_ch):
         super(double_conv, self).__init__()
         self.conv = keras.Sequential([
@@ -14,19 +14,19 @@ class double_conv(layers.Layer):
             layers.BatchNormalization(momentum=0.9),
             layers.Activation('relu')            
         ])
-    def call(self, x):
+    def __call__(self, x):
         x = self.conv(x)
         return x
 
-class inconv(layers.Layer):
+class inconv(tf.Module):
     def __init__(self, in_ch, out_ch):
         super(inconv, self).__init__()
         self.conv = double_conv(in_ch, out_ch)
-    def call(self, x):
+    def __call__(self, x):
         x = self.conv(x)
         return x
 
-class down(layers.Layer):
+class down(tf.Module):
     def __init__(self, in_ch, out_ch):
         super(down, self).__init__()
         self.mpconv = keras.Sequential([
@@ -39,12 +39,12 @@ class down(layers.Layer):
             layers.Activation('relu') 
         ])
 
-    def call(self, x):
+    def __call__(self, x):
         x = self.mpconv(x)
         return x
         
 
-class up(layers.Layer):
+class up(tf.Module):
     def __init__(self, in_ch, out_ch, bilinear=True):
         super(up, self).__init__()
 
@@ -57,7 +57,7 @@ class up(layers.Layer):
 
         self.conv = double_conv(in_ch, out_ch)
 
-    def call(self, x1, x2):
+    def __call__(self, x1, x2):
         x1 = self.up(x1) 
         diffX = x1.shape[1] - x2.shape[1] # height ?
         diffY = x1.shape[2] - x2.shape[2] # width ?
@@ -67,16 +67,16 @@ class up(layers.Layer):
         x = self.conv(x)
         return x
 
-class outconv(layers.Layer):
+class outconv(tf.Module):
     def __init__(self, in_ch, out_ch):
         super(outconv, self).__init__()
         self.conv = layers.Conv2D(out_ch, (1, 1), padding = "SAME", activation=None)
-    def call(self, x):
+    def __call__(self, x):
         x = self.conv(x)
         return x
 
 
-class ConvLSTMCell(layers.Layer):
+class ConvLSTMCell(tf.Module):
 
     def __init__(self, input_size, input_dim, hidden_dim, kernel_size, bias):
         """
@@ -116,7 +116,7 @@ class ConvLSTMCell(layers.Layer):
                               use_bias=self.bias)
         ])
 
-    def call(self, input_tensor, cur_state):
+    def __call__(self, input_tensor, cur_state):
         h_cur, c_cur = cur_state
 
         combined = layers.concatenate([input_tensor, h_cur], axis=3)  # concatenate along channel axis
@@ -143,7 +143,7 @@ class ConvLSTMCell(layers.Layer):
                 tf.zeros([batch_size, self.height, self.width, self.hidden_dim]))
 
 
-class ConvLSTM(layers.Layer):
+class ConvLSTM(tf.Module):
 
     def __init__(self, input_size, input_dim, hidden_dim, kernel_size, num_layers,
                  batch_first=False, bias=True, return_all_layers=False):
@@ -180,7 +180,7 @@ class ConvLSTM(layers.Layer):
         # self.cell_list = nn.ModuleList(cell_list)
         self.cell_list = cell_list
         
-    def call(self, input_tensor, hidden_state=None):
+    def __call__(self, input_tensor, hidden_state=None):
         """
 
         Parameters
