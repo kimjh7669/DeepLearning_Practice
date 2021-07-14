@@ -1,86 +1,82 @@
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
-import math
+import tensorflow as tf
+from tensorflow import keras
+from tensorflow.keras import layers
 import numpy as np
-from torch.autograd import Variable
 
-class double_conv(nn.Module):
-    '''(conv => BN => ReLU) * 2'''
+class double_conv(layers.Layer): 
     def __init__(self, in_ch, out_ch):
         super(double_conv, self).__init__()
-        self.conv = nn.Sequential(
-            nn.Conv2d(in_ch, out_ch, 3, padding=1),
-            nn.BatchNorm2d(out_ch),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(out_ch, out_ch, 3, padding=1),
-            nn.BatchNorm2d(out_ch),
-            nn.ReLU(inplace=True)
-        )
-
-    def forward(self, x):
+        self.conv = keras.Sequential([
+            layers.Conv2D(out_ch, (3, 3), padding = "SAME", activation=None), 
+            layers.BatchNormalization(momentum=0.9),
+            layers.Activation('relu'),
+            layers.Conv2D(out_ch, (3, 3), padding = "SAME", activation=None), 
+            layers.BatchNormalization(momentum=0.9),
+            layers.Activation('relu')            
+        ])
+    def call(self, x):
         x = self.conv(x)
         return x
 
-
-class inconv(nn.Module):
+class inconv(layers.Layer):
     def __init__(self, in_ch, out_ch):
         super(inconv, self).__init__()
         self.conv = double_conv(in_ch, out_ch)
-
-    def forward(self, x):
+    def call(self, x):
         x = self.conv(x)
         return x
 
-
-class down(nn.Module):
+class down(layers.Layer):
     def __init__(self, in_ch, out_ch):
         super(down, self).__init__()
-        self.mpconv = nn.Sequential(
-            nn.MaxPool2d(2),
-            double_conv(in_ch, out_ch)
-        )
+        self.mpconv = keras.Sequential([
+            layers.MaxPooling2D(2),
+            layers.Conv2D(out_ch, (3, 3), padding = "SAME", activation=None), 
+            layers.BatchNormalization(momentum=0.9),
+            layers.Activation('relu'),
+            layers.Conv2D(out_ch, (3, 3), padding = "SAME", activation=None), 
+            layers.BatchNormalization(momentum=0.9),
+            layers.Activation('relu') 
+        ])
 
-    def forward(self, x):
+    def call(self, x):
         x = self.mpconv(x)
         return x
+        
 
-
-class up(nn.Module):
+class up(layers.Layer):
     def __init__(self, in_ch, out_ch, bilinear=True):
         super(up, self).__init__()
 
         #  would be a nice idea if the upsampling could be learned too,
         #  but my machine do not have enough memory to handle all those weights
         if bilinear:
-            self.up = nn.UpsamplingBilinear2d(scale_factor=2)
+            self.up = layers.UpSampling2D(size = (2,2), interpolation='bilinear')
         else:
-            self.up = nn.ConvTranspose2d(in_ch//2, in_ch//2, 2, stride=2)
+            self.up = layers.Conv2DTranspose(in_ch//2, 2, stride=(2, 2))
 
         self.conv = double_conv(in_ch, out_ch)
 
-    def forward(self, x1, x2):
-        x1 = self.up(x1)
-        diffX = x1.size()[2] - x2.size()[2]
-        diffY = x1.size()[3] - x2.size()[3]
-        x2 = F.pad(x2, (diffX // 2, int(diffX / 2),
-                        diffY // 2, int(diffY / 2)))
-        x = torch.cat([x2, x1], dim=1)
+    def call(self, x1, x2):
+        x1 = self.up(x1) 
+        diffX = x1.shape[1] - x2.shape[1] # height ?
+        diffY = x1.shape[2] - x2.shape[2] # width ?
+        padding = [[0,0], [(diffX)// 2, int((diffX + 1)/ 2)], [diffY // 2, int((diffY+1) / 2)], [0,0]]
+        x2 = tf.pad(x2, padding)
+        x = layers.concatenate([x2, x1], axis=3)
         x = self.conv(x)
         return x
 
-
-class outconv(nn.Module):
+class outconv(layers.Layer):
     def __init__(self, in_ch, out_ch):
         super(outconv, self).__init__()
-        self.conv = nn.Conv2d(in_ch, out_ch, 1)
-
-    def forward(self, x):
+        self.conv = layers.Conv2D(out_ch, (1, 1), padding = "SAME", activation=None)
+    def call(self, x):
         x = self.conv(x)
         return x
 
 
-class ConvLSTMCell(nn.Module):
+class ConvLSTMCell(layers.Layer):
 
     def __init__(self, input_size, input_dim, hidden_dim, kernel_size, bias):
         """
@@ -110,36 +106,44 @@ class ConvLSTMCell(nn.Module):
         self.padding = kernel_size[0] // 2, kernel_size[1] // 2
         self.bias = bias
 
-        self.conv = nn.Conv2d(in_channels=self.input_dim + self.hidden_dim,
-                              out_channels=4 * self.hidden_dim,
-                              kernel_size=self.kernel_size,
-                              padding=self.padding,
-                              bias=self.bias)
 
-    def forward(self, input_tensor, cur_state):
+        self.conv = keras.Sequential([
+            layers.ZeroPadding2D(padding=self.padding),
+            layers.Conv2D( #in_channels=self.input_dim + self.hidden_dim,
+                              filters=4 * self.hidden_dim,
+                              kernel_size=self.kernel_size,
+                              padding="valid",
+                              use_bias=self.bias)
+        ])
+
+    def call(self, input_tensor, cur_state):
         h_cur, c_cur = cur_state
 
-        combined = torch.cat([input_tensor, h_cur], dim=1)  # concatenate along channel axis
+        combined = layers.concatenate([input_tensor, h_cur], axis=3)  # concatenate along channel axis
 
         combined_conv = self.conv(combined)
+        for_split_list = []
+        
+        for i in range(combined_conv.shape[3] // self.hidden_dim):
+            for_split_list.append(self.hidden_dim)
 
-        cc_i, cc_f, cc_o, cc_g = torch.split(combined_conv, self.hidden_dim, dim=1)
-        i = torch.sigmoid(cc_i)
-        f = torch.sigmoid(cc_f)
-        o = torch.sigmoid(cc_o)
-        g = torch.tanh(cc_g)
+        cc_i, cc_f, cc_o, cc_g = tf.split(combined_conv, for_split_list, axis=3) # split 
+        i = tf.sigmoid(cc_i)
+        f = tf.sigmoid(cc_f)
+        o = tf.sigmoid(cc_o)
+        g = tf.tanh(cc_g)
 
         c_next = f * c_cur + i * g
-        h_next = o * torch.tanh(c_next)
+        h_next = o * tf.tanh(c_next)
 
         return h_next, c_next
 
     def init_hidden(self, batch_size):
-        return (torch.zeros(batch_size, self.hidden_dim, self.height, self.width).cuda(),
-                torch.zeros(batch_size, self.hidden_dim, self.height, self.width).cuda())
+        return (tf.zeros([batch_size, self.height, self.width, self.hidden_dim]),
+                tf.zeros([batch_size, self.height, self.width, self.hidden_dim]))
 
 
-class ConvLSTM(nn.Module):
+class ConvLSTM(layers.Layer):
 
     def __init__(self, input_size, input_dim, hidden_dim, kernel_size, num_layers,
                  batch_first=False, bias=True, return_all_layers=False):
@@ -173,9 +177,10 @@ class ConvLSTM(nn.Module):
                                           kernel_size=self.kernel_size[i],
                                           bias=self.bias))
 
-        self.cell_list = nn.ModuleList(cell_list)
-
-    def forward(self, input_tensor, hidden_state=None):
+        # self.cell_list = nn.ModuleList(cell_list)
+        self.cell_list = cell_list
+        
+    def call(self, input_tensor, hidden_state=None):
         """
 
         Parameters
@@ -190,19 +195,20 @@ class ConvLSTM(nn.Module):
         last_state_list, layer_output
         """
         if not self.batch_first:
-            # (t, b, c, h, w) -> (b, t, c, h, w)
-            input_tensor=input_tensor.permute(1, 0, 2, 3, 4)
+            # (t, b, c, h, w) -> (b, t, c, h, w) -> t = seq num
+            # (t, b, h, w, c) -> (b, t, h, w, c)
+            input_tensor = tf.transpose(input_tensor, [1, 0, 2, 3, 4])
 
         # Implement stateful ConvLSTM
         if hidden_state is not None:
             raise NotImplementedError()
         else:
-            hidden_state = self._init_hidden(batch_size=input_tensor.size(0))
+            hidden_state = self._init_hidden(batch_size=input_tensor.shape[0])
 
         layer_output_list = []
         last_state_list = []
 
-        seq_len = input_tensor.size(1)
+        seq_len = input_tensor.shape[1]
         cur_layer_input = input_tensor
 
         for layer_idx in range(self.num_layers):
@@ -216,11 +222,10 @@ class ConvLSTM(nn.Module):
 
                 output_inner.append(h)
 
-            layer_output = torch.stack(output_inner, dim=1)
+            layer_output = tf.stack(output_inner, axis=1)
             cur_layer_input = layer_output
-
-            layer_output = layer_output.permute(1, 0, 2, 3, 4)
-
+            
+            layer_output = tf.transpose(layer_output, [1, 0, 2, 3, 4])
             layer_output_list.append(layer_output)
             last_state_list.append([h, c])
 
@@ -247,9 +252,3 @@ class ConvLSTM(nn.Module):
         if not isinstance(param, list):
             param = [param] * num_layers
         return param
-
-
-
-
-
-

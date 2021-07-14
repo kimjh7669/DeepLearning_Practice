@@ -8,9 +8,9 @@ import time
 from config import args_setting
 from dataset_tensorflow import RoadSequenceDataset, RoadSequenceDatasetList
 from model_tensorflow import generate_model
-import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
-import tensorflow as tf
+# import os
+# os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
+# import tensorflow as tf
 # from torchvision import transforms
 # from torch.optim import lr_scheduler
 
@@ -22,7 +22,6 @@ def train(args, epoch, model, train_loader, device, optimizer, criterion):
         data, target = sample_batched['data'], sample_batched['label']
         with tf.GradientTape() as tape:
             output, _ = model(data)
-            print(model.summary())
             output = tf.convert_to_tensor(output)
             loss1 = criterion(target, output[:,:,:,0])
             loss2 = criterion(target, output[:,:,:,1])
@@ -42,7 +41,7 @@ def train(args, epoch, model, train_loader, device, optimizer, criterion):
         time_elapsed // 60, time_elapsed % 60))
 
 def val(args, model, val_loader, criterion):
-    global idx
+
     loss= 0
     correct = 0
 
@@ -62,9 +61,8 @@ def val(args, model, val_loader, criterion):
     print('\nAverage loss: {:.4f}, Accuracy: {}/{} ({:.5f}%)\n'.format(
         loss, int(correct), val_loader.dataset_size, val_acc))
     # model.save(model, '%s.pth'%val_acc)
-    model.save_weights('model%d'%idx)
-    idx += 1
-idx = 1
+    model.save_weights('model%d'%val_acc)
+
 
 def get_parameters(model, layer_name):
     import torch.nn as nn
@@ -82,9 +80,23 @@ def get_parameters(model, layer_name):
                 else:
                     for parma in layer.parameters():
                         yield parma
+def limit_gpu(gb):
+    gpus = tf.config.experimental.list_physical_devices('GPU')
+    num_gpu = 1
+    memory_limit = 1024 * gb
+    if gpus:
+        try:
+            tf.config.experimental.set_virtual_device_configuration(gpus[num_gpu - 1], [
+                tf.config.experimental.VirtualDeviceConfiguration(memory_limit=memory_limit)])
+            print("Use {} GPU limited {}MB memory".format(num_gpu, memory_limit))
+        except RuntimeError as e:
+            print(e)
 
+    else:
+        print('GPU is not available')
 
 if __name__ == '__main__':
+    limit_gpu(1)
     args = args_setting()
     tf.random.set_seed(args.seed)
     use_cuda = args.cuda and tf.test.is_gpu_available()
@@ -142,4 +154,4 @@ if __name__ == '__main__':
     # for epoch in range(1, 5):
         train(args, epoch, model, train_loader, device, optimizer, criterion)
         val(args, model, val_loader, criterion)
-
+    model.save_weights('model_epoch_5')
