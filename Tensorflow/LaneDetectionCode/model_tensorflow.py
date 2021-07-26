@@ -71,15 +71,21 @@ class UNet_ConvLSTM(Model):
 
     def call(self, x):
         x = tf.unstack(x, axis=1)
-        data = []
-        for item in x:
+        # data = []
+        for idx, item in enumerate(x):
             x1 = self.inc(item)
             x2 = self.down1(x1)
             x3 = self.down2(x2)
             x4 = self.down3(x3)
             x5 = self.down4(x4)
-            data.append(tf.expand_dims(x5, axis = 0))
-        data = layers.concatenate(data, axis=0)
+            if idx == 0:
+                data = tf.expand_dims(x5, axis = 0)
+            else:
+                data = tf.concat([data, tf.expand_dims(x5, axis = 0)], axis = 0)
+            
+            # data.append(tf.expand_dims(x5, axis = 0))
+        # data = layers.concatenate(data, axis=0)
+        
         lstm, _ = self.convlstm(data)
         test = lstm[-1][ -1,:, :, :, :]
         x = self.up1(test, x4)

@@ -72,8 +72,10 @@ class RoadSequenceDatasetList(Sequence):
                 
             data = tf.keras.layers.concatenate(data, 0)
             # print(data.shape)
-            label = Image.open(img_path_list[5])
-            label = tf.squeeze(image.img_to_array(label))
+            label = np.array(image.img_to_array(Image.open(img_path_list[5]))) / 255.
+            
+            label = tf.squeeze(label)
+            label = tf.cast(label, dtype = tf.int32)
             
             if if_first == True:
                 temp = np.array(data)
