@@ -33,9 +33,22 @@ def unpool(value, name='unpool'):
     return out
 
 
+def generate_model(args):
+
+    assert args.model in [ 'UNet-ConvLSTM', 'SegNet-ConvLSTM', 'UNet', 'SegNet']
+    if args.model == 'SegNet-ConvLSTM':
+        model = SegNet_ConvLSTM()
+    elif args.model == 'SegNet':
+        model = SegNet()
+    elif args.model == 'UNet-ConvLSTM':
+        model = UNet_ConvLSTM(config.img_channel, config.class_num)
+    elif args.model == 'UNet':
+        model = UNet(config.img_channel, config.class_num)
+    return model
 
 class UNet_ConvLSTM(Model):
     def __init__(self, n_channels, n_classes):
+        print('hello')
         super(UNet_ConvLSTM, self).__init__()
         self.inc = inconv(n_channels, 64)
         self.down1 = down(64, 128)
@@ -304,18 +317,3 @@ class SegNet(Model):
 
 
 
-def generate_model(args):
-
-    use_cuda = args.cuda and tf.test.is_gpu_available()
-    device = tf.device("gpu" if use_cuda else "cpu")
-
-    assert args.model in [ 'UNet-ConvLSTM', 'SegNet-ConvLSTM', 'UNet', 'SegNet']
-    if args.model == 'SegNet-ConvLSTM':
-        model = SegNet_ConvLSTM()
-    elif args.model == 'SegNet':
-        model = SegNet()
-    elif args.model == 'UNet-ConvLSTM':
-        model = UNet_ConvLSTM(config.img_channel, config.class_num)
-    elif args.model == 'UNet':
-        model = UNet(config.img_channel, config.class_num)
-    return model

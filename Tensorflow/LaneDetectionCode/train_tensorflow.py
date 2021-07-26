@@ -8,15 +8,37 @@ import time
 from config import args_setting
 from dataset_tensorflow import RoadSequenceDataset, RoadSequenceDatasetList
 from model_tensorflow import generate_model
+
 # import os
 # os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
-# import tensorflow as tf
-# from torchvision import transforms
-# from torch.optim import lr_scheduler
+
+from tensorflow.keras import layers
+from tensorflow.keras import Model
+from utils_tensorflow import *
+
+# physical_devices = tf.config.experimental.list_physical_devices('GPU')
+# if len(physical_devices) > 0:
+#     tf.config.experimental.set_memory_growth(physical_devices[0], True)
+    
+def limit_gpu(gb):
+    gpus = tf.config.experimental.list_physical_devices('GPU')
+    num_gpu = 1
+    memory_limit = 1024 * gb
+
+    if gpus:
+        try:
+            tf.config.set_logical_device_configuration(gpus[num_gpu - 1], [
+                tf.config.LogicalDeviceConfiguration(memory_limit=memory_limit)])
+            print("Use {} GPU limited {}MB memory".format(num_gpu, memory_limit))
+        except RuntimeError as e:
+            print(e)
+
+    else:
+        print('GPU is not available')
+limit_gpu(0.6)
 
 
-
-def train(args, epoch, model, train_loader, device, optimizer, criterion):
+def train(args, epoch, model, train_loader, optimizer, criterion):
     since = time.time()
     for batch_idx,  sample_batched in enumerate(train_loader):
         data, target = sample_batched['data'], sample_batched['label']
@@ -64,43 +86,12 @@ def val(args, model, val_loader, criterion):
     model.save_weights('model%d'%val_acc)
 
 
-def get_parameters(model, layer_name):
-    import torch.nn as nn
-    modules_skipped = (
-        nn.ReLU,
-        nn.MaxPool2d,
-        nn.Dropout2d,
-        nn.UpsamplingBilinear2d
-    )
-    for name, module in model.named_children():
-        if name in layer_name:
-            for layer in module.children():
-                if isinstance(layer, modules_skipped):
-                    continue
-                else:
-                    for parma in layer.parameters():
-                        yield parma
-def limit_gpu(gb):
-    gpus = tf.config.experimental.list_physical_devices('GPU')
-    num_gpu = 1
-    memory_limit = 1024 * gb
-    if gpus:
-        try:
-            tf.config.experimental.set_virtual_device_configuration(gpus[num_gpu - 1], [
-                tf.config.experimental.VirtualDeviceConfiguration(memory_limit=memory_limit)])
-            print("Use {} GPU limited {}MB memory".format(num_gpu, memory_limit))
-        except RuntimeError as e:
-            print(e)
-
-    else:
-        print('GPU is not available')
 
 if __name__ == '__main__':
-    limit_gpu(1)
+    # limit_gpu(0.5)
     args = args_setting()
     tf.random.set_seed(args.seed)
-    use_cuda = args.cuda and tf.test.is_gpu_available()
-    device = tf.device("gpu" if use_cuda else "cpu")
+    
 
     # turn image into floatTensor
     # op_tranforms = image.img_to_array()
@@ -115,19 +106,9 @@ if __name__ == '__main__':
 
     #load model
     model = generate_model(args)
+
     scheduler = tf.keras.optimizers.schedules.ExponentialDecay(args.lr, decay_steps=1, decay_rate=0.5, staircase=True)    
     optimizer = tf.keras.optimizers.Adam(learning_rate=scheduler)
-    # optimizer = torch.optim.Adam([
-    #     {'params': get_parameters(model, layer_name=["inc", "down1", "down2", "down3", "down4"]), 'lr': args.lr * 0.0},
-    #     {'params': get_parameters(model, layer_name=["outc", "up1", "up2", "up3", "up4"]), 'lr': args.lr * 0.1},
-    #     {'params': get_parameters(model, layer_name=["convlstm"]), 'lr': args.lr * 1},
-    # ], lr=args.lr)
-    # optimizer = torch.optim.SGD([
-    #     {'params': get_parameters(model, layer_name=["conv1_block", "conv2_block", "conv3_block", "conv4_block", "conv5_block"]), 'lr': args.lr * 0.5},
-    #     {'params': get_parameters(model, layer_name=["upconv5_block", "upconv4_block", "upconv3_block", "upconv2_block", "upconv1_block"]), 'lr': args.lr * 0.33},
-    #     {'params': get_parameters(model, layer_name=["Conv3D_block"]), 'lr': args.lr * 0.5},
-    # ], lr=args.lr,momentum=0.9)
-
     
     # class_weight = tf.convert_to_tensor(config.class_weight)
     class_weight = tf.convert_to_tensor([3.,3.,3.])
@@ -152,6 +133,6 @@ if __name__ == '__main__':
 
     for epoch in range(1, args.epochs+1):
     # for epoch in range(1, 5):
-        train(args, epoch, model, train_loader, device, optimizer, criterion)
+        train(args, epoch, model, train_loader, optimizer, criterion)
         val(args, model, val_loader, criterion)
     model.save_weights('model_epoch_5')

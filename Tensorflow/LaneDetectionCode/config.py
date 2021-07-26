@@ -12,8 +12,8 @@ data_loader_numworkers = 8
 class_num = 2
 
 # path
-train_path = "./data/train_index.txt"
-val_path = "./data/val_index.txt"
+train_path = "C:/Users/Lim-LAB/Desktop/Git/Robust-Lane-Detection/Tensorflow/LaneDetectionCode/data/train_index.txt"
+val_path = "C:/Users/Lim-LAB/Desktop/Git/Robust-Lane-Detection/Tensorflow/LaneDetectionCode/data/val_index.txt"
 test_path = "./data/test_index_demo.txt"
 save_path = "./save/result/"
 pretrained_path='./pretrained/unetlstm.pth'

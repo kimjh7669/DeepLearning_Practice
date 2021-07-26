@@ -61,7 +61,7 @@ class up(layers.Layer):
         x1 = self.up(x1) 
         diffX = x1.shape[1] - x2.shape[1] # height ?
         diffY = x1.shape[2] - x2.shape[2] # width ?
-        padding = [[0,0], [(diffX)// 2, int((diffX + 1)/ 2)], [diffY // 2, int((diffY+1) / 2)], [0,0]]
+        padding = [[0,0], [diffX// 2, int((diffX + 1)/ 2)], [diffY // 2, int((diffY+1) / 2)], [0,0]]
         x2 = tf.pad(x2, padding)
         x = layers.concatenate([x2, x1], axis=3)
         x = self.conv(x)
