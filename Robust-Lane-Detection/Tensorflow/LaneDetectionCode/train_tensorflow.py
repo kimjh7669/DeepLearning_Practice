@@ -32,8 +32,7 @@ def train(args, epoch, model, train_loader, optimizer, criterion):
             # print(target.shape, output.shape)
             
             # loss = tf.nn.sparse_softmax_cross_entropy_with_logits(labels=target, logits=output)
-            print(target.shape)
-            print(output.shape)
+
             weights = tf.cast(target, dtype=tf.float32) + 0.02
             loss = criterion(target, output, sample_weight=weights)
             # loss = tf.math.multiply(loss, weights)
@@ -118,16 +117,7 @@ if __name__ == '__main__':
     model = generate_model(args)
     scheduler = tf.keras.optimizers.schedules.ExponentialDecay(args.lr, decay_steps=1, decay_rate=0.5, staircase=True)    
     optimizer = tf.keras.optimizers.Adam(learning_rate=scheduler)
-    # optimizer = torch.optim.Adam([
-    #     {'params': get_parameters(model, layer_name=["inc", "down1", "down2", "down3", "down4"]), 'lr': args.lr * 0.0},
-    #     {'params': get_parameters(model, layer_name=["outc", "up1", "up2", "up3", "up4"]), 'lr': args.lr * 0.1},
-    #     {'params': get_parameters(model, layer_name=["convlstm"]), 'lr': args.lr * 1},
-    # ], lr=args.lr)
-    # optimizer = torch.optim.SGD([
-    #     {'params': get_parameters(model, layer_name=["conv1_block", "conv2_block", "conv3_block", "conv4_block", "conv5_block"]), 'lr': args.lr * 0.5},
-    #     {'params': get_parameters(model, layer_name=["upconv5_block", "upconv4_block", "upconv3_block", "upconv2_block", "upconv1_block"]), 'lr': args.lr * 0.33},
-    #     {'params': get_parameters(model, layer_name=["Conv3D_block"]), 'lr': args.lr * 0.5},
-    # ], lr=args.lr,momentum=0.9)
+
 
     
     # class_weight = tf.convert_to_tensor(config.class_weight)
