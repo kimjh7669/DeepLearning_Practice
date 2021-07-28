@@ -13,7 +13,7 @@ def train(args, epoch, model, train_loader, device, optimizer, criterion):
     for batch_idx,  sample_batched in enumerate(train_loader):
         data, target = sample_batched['data'].to(device), sample_batched['label'].type(torch.LongTensor).to(device) # LongTensor
         optimizer.zero_grad()
-        output = model(data)
+        output, _ = model(data)
         loss = criterion(output, target)
         loss.backward()
         optimizer.step()
@@ -107,11 +107,11 @@ if __name__ == '__main__':
     criterion = torch.nn.CrossEntropyLoss(weight=class_weight).to(device)
     best_acc = 0
 
-    pretrained_dict = torch.load(config.pretrained_path)
+    # pretrained_dict = torch.load(config.pretrained_path)
     model_dict = model.state_dict()
 
-    pretrained_dict_1 = {k: v for k, v in pretrained_dict.items() if (k in model_dict)}
-    model_dict.update(pretrained_dict_1)
+    # pretrained_dict_1 = {k: v for k, v in pretrained_dict.items() if (k in model_dict)}
+    # model_dict.update(pretrained_dict_1)
     model.load_state_dict(model_dict)
 
     # train
