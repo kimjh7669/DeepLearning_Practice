@@ -80,7 +80,7 @@ def main():
     reward = -1
     alpha = 0.001
 
-    for k in range(50000):
+    for k in range(2):
         done = False
         history = []
 
@@ -91,13 +91,14 @@ def main():
         env.reset()
 
         cum_reward = 0
-        for transition in history[::-1]:
+        for transition in history[::-1]: # for trainsition in history: 와 다르게 history의 뒷부분부터 for문을 수행한다.
             x, y, reward = transition
             data[x][y] = data[x][y] + alpha*(cum_reward-data[x][y])
             cum_reward = reward + gamma*cum_reward  # 책에 오타가 있어 수정하였습니다
             
     for row in data:
         print(row)
+    
 
 if __name__ == '__main__':
     main()

@@ -70,7 +70,8 @@ class Agent():
         else:
             action = 3
         return action
-
+        
+# GridWorld 와 Agent에 대한 부분은 MCLearning과 동일함. 
 
 def main():
     #TD
